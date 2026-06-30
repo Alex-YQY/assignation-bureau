@@ -224,3 +224,130 @@ th.grid__office { width: 200px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* ===================================================================
+   v2 — édition, base de données, vues semaine / mois, personnel
+   =================================================================== */
+
+/* ---- toolbar (edit toggle + save status) ---- */
+.toolbar { display: flex; align-items: center; gap: 12px; margin: 14px 0 0; flex-wrap: wrap; }
+.editbtn {
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+  border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 500; transition: .12s;
+}
+.editbtn:hover { border-color: var(--teal); color: var(--teal-deep); }
+.editbtn.is-on { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+.savechip {
+  display: inline-flex; align-items: center; gap: 7px; margin-left: auto;
+  font-size: 12.5px; font-weight: 500; color: var(--muted);
+  padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+}
+.savedot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+.savechip--saved .savedot { background: var(--free); }
+.savechip--saving .savedot { background: var(--amber); animation: pulse 1s ease-in-out infinite; }
+.savechip--unsaved .savedot { background: var(--amber); }
+.savechip--error { color: #b3261e; border-color: #f3c9c5; background: #fdeceb; }
+.savechip--error .savedot { background: #b3261e; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+.banner {
+  margin: 12px 0 0; padding: 10px 14px; border-radius: 8px; font-size: 13px;
+  background: #fdf4e3; border: 1px solid #f0dca8; color: #7a5807;
+}
+
+/* ---- week / month shared bar ---- */
+.weekbar {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px 16px; box-shadow: var(--shadow);
+}
+.weekbar__label { flex: 1; text-align: center; font-size: 17px; font-weight: 500; letter-spacing: -.01em; }
+.weektools { display: flex; gap: 10px; margin: 12px 0 18px; flex-wrap: wrap; align-items: center; }
+
+/* ---- segmented control (slot picker) ---- */
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg__btn { border: 0; background: none; padding: 8px 16px; font-size: 13px; font-weight: 600; color: var(--muted); border-right: 1px solid var(--line); }
+.seg__btn:last-child { border-right: 0; }
+.seg__btn.is-active { background: var(--ink); color: #fff; }
+
+/* ---- week grid ---- */
+.grid--week { min-width: 720px; }
+.grid__day { text-align: center; white-space: nowrap; font-size: 12px; }
+.grid__daynum { display: block; font-size: 15px; font-weight: 600; color: var(--ink); margin-top: 1px; }
+.office__label.sm { font-size: 13px; }
+.cellw { text-align: center; padding: 4px 6px !important; }
+.whow { justify-content: center; font-size: 12.5px; width: 100%; }
+.cell--hot { background: var(--teal-tint) !important; }
+.cell--hot .whow { color: var(--teal-deep); font-weight: 700; }
+.dot { color: var(--line-strong); }
+
+/* ---- editable empty cell ---- */
+.addcell {
+  border: 1px dashed var(--line-strong); background: none; color: var(--faint);
+  border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 500;
+}
+.addcell:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-tint); }
+.addcell--sm { padding: 2px 7px; }
+.who--edit { box-shadow: inset 0 0 0 1px var(--line-strong); }
+.who--edit:hover { box-shadow: inset 0 0 0 1px var(--teal); }
+
+/* ---- month calendar ---- */
+.cal { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); box-shadow: var(--shadow); }
+.cal__row--head, .cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal__row--head { background: #fafbfa; border-bottom: 1px solid var(--line-strong); }
+.cal__dow { padding: 9px 4px; text-align: center; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cal__cell {
+  border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  background: var(--surface); min-height: 72px; padding: 6px; text-align: left;
+  display: flex; flex-direction: column; gap: 4px; align-items: stretch;
+}
+.cal__cell:nth-child(7n) { border-right: 0; }
+.cal__cell:not(:disabled):hover { background: var(--teal-tint); }
+.cal__cell--empty { background: #fafbfa; }
+.cal__cell--off { background: #f7f8f7; color: var(--faint); cursor: default; }
+.cal__cell--today { box-shadow: inset 0 0 0 2px var(--teal); }
+.cal__num { font-size: 13px; font-weight: 600; color: var(--ink); }
+.cal__cell--off .cal__num { color: var(--faint); font-weight: 400; }
+.cal__bars { display: flex; gap: 3px; align-items: flex-end; height: 30px; margin-top: auto; }
+.cal__bar { flex: 1; border-radius: 2px 2px 0 0; min-height: 3px; }
+.cal__bar--am { background: #6fa3e0; }
+.cal__bar--pm { background: #e0a86f; }
+.cal__bar--soir { background: #9985c7; }
+.cal__slots { display: flex; flex-wrap: wrap; gap: 3px; margin-top: auto; }
+.cal__slots .slot { min-width: 0; padding: 1px 5px; font-size: 10px; }
+.cal__offmark { color: var(--faint); font-size: 13px; }
+
+/* ---- staff manager ---- */
+.addrow { display: flex; gap: 8px; max-width: 480px; }
+.addrow .search { flex: 1; }
+.staff { list-style: none; margin: 14px 0 0; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.staff__row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.staff__row:last-child { border-bottom: 0; }
+.staff__name { border: 1px solid transparent; background: none; border-radius: 7px; padding: 8px 10px; font-size: 14px; font-weight: 500; color: var(--ink); font-family: inherit; }
+.staff__name:hover { border-color: var(--line); }
+.staff__name:focus { outline: 0; border-color: var(--teal); background: var(--surface); box-shadow: 0 0 0 2px var(--teal-tint); }
+.staff__count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+.iconbtn { border: 1px solid var(--line-strong); background: var(--surface); width: 30px; height: 30px; border-radius: 7px; font-size: 18px; line-height: 1; color: var(--muted); flex: none; }
+.iconbtn:hover { border-color: var(--teal); color: var(--ink); }
+.iconbtn--danger:hover { border-color: #d9534f; color: #b3261e; background: #fdeceb; }
+
+/* ---- cell editor modal ---- */
+.modal { position: fixed; inset: 0; background: rgba(24,40,43,.34); display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px 16px; z-index: 50; }
+.modal__box { width: 100%; max-width: 440px; background: var(--surface); border-radius: 14px; box-shadow: 0 12px 48px rgba(24,40,43,.28); padding: 18px; }
+.modal__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.modal__title { font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.modal__title .office__code { display: inline; margin-left: 6px; }
+.modal__sub { font-size: 13px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 8px; }
+.modal__current { background: var(--paper); border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dangerlink { border: 0; background: none; color: #b3261e; font-size: 13px; font-weight: 600; text-decoration: underline; padding: 0; }
+.suggest--inline { position: static; box-shadow: none; border: 1px solid var(--line); margin-top: 10px; max-height: 280px; }
+.suggest__add { color: var(--teal-deep); font-weight: 600; }
+
+@media (max-width: 620px) {
+  .staff__row { grid-template-columns: 1fr auto; }
+  .staff__count { display: none; }
+  .cal__cell { min-height: 58px; padding: 4px; }
+  .cal__bars { height: 22px; }
+}

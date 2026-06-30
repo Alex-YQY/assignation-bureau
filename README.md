@@ -1,38 +1,65 @@
-# Assignation de bureaux — GMF-U Saint-Jean-sur-Richelieu
+# Assignation des bureaux — GMF-U Saint-Jean-sur-Richelieu
 
-Application web pour consulter l’assignation des locaux : **par jour**, **par personne** et **par local**.
-Données : 36 locaux × 3 plages horaires (AM / PM / Soir), du 29 décembre 2025 au 12 octobre 2026.
+Application web (React + Vite) pour consulter et **modifier** l'assignation des
+locaux par jour, semaine et mois, gérer le personnel, et **enregistrer le tout
+dans une base de données** partagée.
 
-## Lancer en local
+## Vues
+- **Jour** — grille locaux × plages (AM / PM / Soir) avec taux d'occupation.
+- **Semaine** — grille locaux × 7 jours pour une plage choisie ; surlignage d'une personne.
+- **Mois** — calendrier avec occupation quotidienne, ou les jours d'une personne.
+- **Personne / Local** — horaire à venir d'une personne ou d'un local.
+- **Personnel** — ajouter, renommer (mise à jour de tout l'horaire) ou retirer une personne.
 
+L'édition s'active avec le bouton **« Modifier l'horaire »**. Les changements
+sont enregistrés automatiquement (indicateur en haut à droite).
+
+## Démarrage local
 ```bash
 npm install
 npm run dev
 ```
+Sans base de données configurée, l'app enregistre dans le navigateur (localStorage).
 
-Ouvrir l’adresse affichée (par défaut http://localhost:5173).
+## Base de données (Supabase — gratuit)
 
-## Déployer sur Vercel via GitHub
+1. Crée un compte sur https://supabase.com et un nouveau projet.
+2. Dans le projet : **SQL Editor → New query**, colle et exécute :
 
-1. Créer un dépôt GitHub et y pousser ce dossier :
-   ```bash
-   git init
-   git add .
-   git commit -m "Assignation de bureaux"
-   git branch -M main
-   git remote add origin https://github.com/VOTRE-COMPTE/gmfu-bureaux.git
-   git push -u origin main
-   ```
-2. Sur https://vercel.com → **Add New… → Project** → importer le dépôt.
-3. Vercel détecte Vite automatiquement (build `vite build`, sortie `dist`). Cliquer **Deploy**.
+```sql
+create table if not exists schedule (
+  id text primary key,
+  doc jsonb not null,
+  updated_at timestamptz default now()
+);
+alter table schedule enable row level security;
 
-## Mettre à jour les données
+-- Accès lecture/écriture via la clé anonyme.
+-- ⚠️ Voir la note de sécurité plus bas avant de mettre en ligne publiquement.
+create policy "anon read"  on schedule for select using (true);
+create policy "anon write" on schedule for insert with check (true);
+create policy "anon update" on schedule for update using (true) with check (true);
+```
 
-Les données sont dans `src/data.json` (généré à partir du CSV original).
-Pour régénérer après une nouvelle version du CSV, adaptez le script de conversion puis remplacez `src/data.json`.
+3. **Project Settings → API** : copie *Project URL* et la clé *anon public*.
+4. Dans Vercel : **Project → Settings → Environment Variables**, ajoute
+   `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`, puis redéploie.
 
-## Structure
+Au premier chargement, l'horaire actuel est automatiquement copié dans la base.
+Ensuite, toute modification est synchronisée et visible par tous.
 
-- `src/App.jsx` — interface et logique (vues Jour / Personne / Local)
-- `src/styles.css` — styles
-- `src/data.json` — horaire complet
+## ⚠️ Sécurité — données internes
+
+Avec les règles ci-dessus, **toute personne connaissant l'adresse du site peut
+lire et modifier** l'horaire (la clé « anon » est publique dans le code). Pour
+des données de clinique, choisis au moins une protection :
+
+- **Protection par mot de passe Vercel** (Settings → Deployment Protection), ou
+- **Authentification Supabase** (connexion par courriel) avec des règles RLS
+  restreintes aux comptes autorisés.
+
+Je peux ajouter l'une ou l'autre sur demande.
+
+## Déploiement
+Pousser sur GitHub puis importer le dépôt dans Vercel (framework détecté : Vite).
+Aucune configuration de build nécessaire.

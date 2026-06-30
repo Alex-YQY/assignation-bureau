@@ -111,7 +111,7 @@ function CellEditor({ doc, cell, onClose, onSet, onAddPerson }) {
 }
 
 /* ---------- DAY ---------- */
-function DayView({ doc, dateIdx, setDateIdx, editMode, goPerson, openCell }) {
+function DayView({ doc, dateIdx, setDateIdx, editMode, openCell }) {
   const m = dates[dateIdx];
   const pd = prettyDate(m.iso);
   const occ = occupancyFor(doc, m.iso);
@@ -147,10 +147,13 @@ function DayView({ doc, dateIdx, setDateIdx, editMode, goPerson, openCell }) {
                     return (
                       <td key={s} className={`cell ${!person ? "cell--free" : ""}`}>
                         {person ? (
-                          <button className={`who ${editMode ? "who--edit" : ""}`}
-                            onClick={() => editMode ? openCell({ iso: m.iso, slot: s, office }) : goPerson(person)}>
-                            {personLabel(person)}{isExternal(person) && <Tag>ext.</Tag>}
-                          </button>
+                          editMode ? (
+                            <button className="who who--edit" onClick={() => openCell({ iso: m.iso, slot: s, office })}>
+                              {personLabel(person)}{isExternal(person) && <Tag>ext.</Tag>}
+                            </button>
+                          ) : (
+                            <span className="who who--static">{personLabel(person)}{isExternal(person) && <Tag>ext.</Tag>}</span>
+                          )
                         ) : editMode ? (
                           <button className="addcell" onClick={() => openCell({ iso: m.iso, slot: s, office })}>+ assigner</button>
                         ) : <span className="free">libre</span>}
@@ -163,13 +166,13 @@ function DayView({ doc, dateIdx, setDateIdx, editMode, goPerson, openCell }) {
           </tbody>
         </table>
       </div>
-      <p className="hint">{editMode ? "Mode édition — touchez une case pour assigner ou libérer un local." : "★ local prioritaire · touchez un nom pour voir son horaire."}</p>
+      <p className="hint">{editMode ? "Mode édition — touchez une case pour assigner ou libérer un local." : "★ local prioritaire."}</p>
     </div>
   );
 }
 
 /* ---------- WEEK ---------- */
-function WeekView({ doc, anchorIdx, setAnchorIdx, editMode, goPerson, openCell, highlight, setHighlight }) {
+function WeekView({ doc, anchorIdx, setAnchorIdx, editMode, openCell, highlight, setHighlight }) {
   const [slot, setSlot] = useState("AM");
   const ws = anchorIdx - (anchorIdx % 7);
   const week = Array.from({ length: 7 }, (_, k) => dates[ws + k]).filter(Boolean);
@@ -206,10 +209,13 @@ function WeekView({ doc, anchorIdx, setAnchorIdx, editMode, goPerson, openCell, 
                     return (
                       <td key={d.iso} className={`cell cellw ${!person ? "cell--free" : ""} ${hot ? "cell--hot" : ""}`}>
                         {person ? (
-                          <button className={`who whow ${editMode ? "who--edit" : ""}`}
-                            onClick={() => editMode ? openCell({ iso: d.iso, slot, office }) : goPerson(person)}>
-                            {personLabel(person)}
-                          </button>
+                          editMode ? (
+                            <button className="who whow who--edit" onClick={() => openCell({ iso: d.iso, slot, office })}>
+                              {personLabel(person)}
+                            </button>
+                          ) : (
+                            <span className="who whow who--static">{personLabel(person)}</span>
+                          )
                         ) : editMode ? (
                           <button className="addcell addcell--sm" onClick={() => openCell({ iso: d.iso, slot, office })}>+</button>
                         ) : <span className="dot">·</span>}
@@ -222,7 +228,7 @@ function WeekView({ doc, anchorIdx, setAnchorIdx, editMode, goPerson, openCell, 
           </tbody>
         </table>
       </div>
-      <p className="hint">Affichage par plage ({slot}). {editMode ? "Touchez une case pour la modifier." : "Touchez un nom pour son horaire."}</p>
+      <p className="hint">Affichage par plage ({slot}). {editMode ? "Touchez une case pour la modifier." : "Surlignez une personne pour suivre sa semaine."}</p>
     </div>
   );
 }
@@ -291,91 +297,6 @@ function MonthView({ doc, cursor, setCursor, goDay, highlight, setHighlight }) {
         </div>
       </div>
       <p className="hint">{highlight ? `Jours de ${personLabel(highlight)} ce mois.` : "Barres = taux d’occupation AM / PM / Soir. Touchez un jour pour l’ouvrir."}</p>
-    </div>
-  );
-}
-
-/* ---------- PERSON ---------- */
-function PersonView({ doc, person, setPerson, fromIdx, goOffice }) {
-  const items = useMemo(() => {
-    if (!person) return [];
-    const out = [];
-    for (let i = fromIdx; i < dates.length; i++) {
-      const iso = dates[i].iso, day = doc.assignments[iso] || {};
-      for (const s of slots) for (const o of doc.offices) if (day[s]?.[o] === person) out.push({ iso, slot: s, office: o });
-    }
-    return out;
-  }, [person, fromIdx, doc]);
-
-  return (
-    <div>
-      <PersonSelect doc={doc} value={person} onChange={setPerson} placeholder="Rechercher une personne…" />
-      {!person && <p className="empty">Choisissez une personne pour afficher son horaire à venir.</p>}
-      {person && <>
-        <div className="exportrow">
-          <p className="hint nomargin">{items.length} créneau{items.length !== 1 ? "x" : ""} à partir d’aujourd’hui</p>
-          {items.length > 0 && (
-            <button className="ghostbtn" onClick={() => {
-              const { ics, count } = personICS(doc, person, dates[fromIdx].iso);
-              if (count) downloadFile(`${personLabel(person).replace(/\s+/g, "_")}.ics`, ics, "text/calendar");
-            }}>↓ Ajouter au calendrier (.ics)</button>
-          )}
-        </div>
-        {items.length === 0 && <p className="empty">Aucune assignation à venir pour {personLabel(person)}.</p>}
-        <ul className="list">{items.map((it, k) => {
-          const pd = prettyDate(it.iso), po = parseOffice(it.office), newDay = k === 0 || items[k - 1].iso !== it.iso;
-          return (
-            <li key={k} className={`row ${newDay ? "row--new" : ""}`}>
-              <span className="row__date">{newDay ? <><b>{pd.wd}</b> {pd.full}</> : ""}</span>
-              <SlotBadge slot={it.slot} />
-              <button className="row__office" onClick={() => goOffice(it.office)}>
-                {po.star && <span className="office__star">★</span>}{po.label}{po.code && <span className="office__code">{po.code}</span>}
-              </button>
-            </li>
-          );
-        })}</ul>
-      </>}
-    </div>
-  );
-}
-
-/* ---------- OFFICE ---------- */
-function OfficeView({ doc, office, setOffice, fromIdx, goPerson }) {
-  const items = useMemo(() => {
-    if (!office) return [];
-    const out = [];
-    for (let i = fromIdx; i < dates.length; i++) {
-      const iso = dates[i].iso, day = doc.assignments[iso] || {};
-      for (const s of slots) { const p = day[s]?.[office]; if (p) out.push({ iso, slot: s, person: p }); }
-    }
-    return out;
-  }, [office, fromIdx, doc]);
-  const po = office ? parseOffice(office) : null;
-
-  return (
-    <div>
-      <label className="pickerlabel">Local
-        <select className="select" value={office || ""} onChange={(e) => setOffice(e.target.value || null)}>
-          <option value="">— Choisir un local —</option>
-          {doc.offices.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-      </label>
-      {!office && <p className="empty">Choisissez un local pour voir qui l’occupe.</p>}
-      {office && <>
-        <div className="officehead"><span className="office__label big">{po.star && <span className="office__star">★</span>}{po.label}</span>{po.code && <span className="office__code">{po.code}</span>}</div>
-        <p className="hint">{items.length} occupation{items.length !== 1 ? "s" : ""} à partir d’aujourd’hui</p>
-        {items.length === 0 && <p className="empty">Local libre sur toute la période à venir.</p>}
-        <ul className="list">{items.map((it, k) => {
-          const pd = prettyDate(it.iso), newDay = k === 0 || items[k - 1].iso !== it.iso;
-          return (
-            <li key={k} className={`row ${newDay ? "row--new" : ""}`}>
-              <span className="row__date">{newDay ? <><b>{pd.wd}</b> {pd.full}</> : ""}</span>
-              <SlotBadge slot={it.slot} />
-              <button className="row__office" onClick={() => goPerson(it.person)}>{personLabel(it.person)}{isExternal(it.person) && <Tag>ext.</Tag>}</button>
-            </li>
-          );
-        })}</ul>
-      </>}
     </div>
   );
 }
@@ -467,6 +388,10 @@ function StaffView({ doc, renamePerson, addPerson, removePerson, setTitle }) {
     return c;
   }, [doc]);
   const sorted = [...doc.people].sort((a, b) => a.localeCompare(b, "fr"));
+  const exportICS = (name) => {
+    const { ics, count } = personICS(doc, name, dates[dateIndex[TODAY] ?? 0].iso);
+    if (count) downloadFile(`${personLabel(name).replace(/\s+/g, "_")}.ics`, ics, "text/calendar");
+  };
 
   return (
     <div>
@@ -477,20 +402,20 @@ function StaffView({ doc, renamePerson, addPerson, removePerson, setTitle }) {
           onKeyDown={(e) => { if (e.key === "Enter" && adding.trim()) { addPerson(adding.trim()); setAdding(""); } }} />
         <button className="ghostbtn" disabled={!adding.trim()} onClick={() => { addPerson(adding.trim()); setAdding(""); }}>Ajouter</button>
       </div>
-      <p className="hint">{sorted.length} personnes · le titre d’emploi alimente les statistiques par titre</p>
+      <p className="hint">{sorted.length} personnes · titre d’emploi pour les statistiques · ↓ exporte l’horaire vers Outlook (.ics)</p>
       <ul className="staff">
         <li className="staff__row staff__row--head">
           <span>Nom</span><span>Titre d’emploi</span><span className="staff__count">Créneaux</span><span />
         </li>
         {sorted.map((p) => (
           <StaffRow key={p} name={p} title={doc.titles?.[p] || ""} count={counts[p] || 0}
-            onRename={renamePerson} onRemove={removePerson} onTitle={setTitle} />
+            onRename={renamePerson} onRemove={removePerson} onTitle={setTitle} onExport={exportICS} />
         ))}
       </ul>
     </div>
   );
 }
-function StaffRow({ name, title, count, onRename, onRemove, onTitle }) {
+function StaffRow({ name, title, count, onRename, onRemove, onTitle, onExport }) {
   const [val, setVal] = useState(name);
   const [tval, setTval] = useState(title);
   useEffect(() => setVal(name), [name]);
@@ -505,8 +430,12 @@ function StaffRow({ name, title, count, onRename, onRemove, onTitle }) {
         onChange={(e) => setTval(e.target.value)} onBlur={commitTitle}
         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
       <span className="staff__count">{count}</span>
-      <button className="iconbtn iconbtn--danger" title="Retirer"
-        onClick={() => { if (confirm(`Retirer ${personLabel(name)} ? Ses ${count} assignation(s) seront effacées.`)) onRemove(name); }}>×</button>
+      <span className="staff__actions">
+        <button className="iconbtn" title="Exporter l’horaire (.ics)" disabled={!count}
+          onClick={() => onExport(name)}>↓</button>
+        <button className="iconbtn iconbtn--danger" title="Retirer"
+          onClick={() => { if (confirm(`Retirer ${personLabel(name)} ? Ses ${count} assignation(s) seront effacées.`)) onRemove(name); }}>×</button>
+      </span>
     </li>
   );
 }
@@ -543,6 +472,33 @@ function PersonSelect({ doc, value, onChange, placeholder }) {
   );
 }
 
+/* ---------- secondary dropdown menu ---------- */
+function SecondaryMenu({ items, view, setView }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const active = items.find(([k]) => k === view);
+  return (
+    <div className="menu" ref={ref}>
+      <button className={`tab menu__btn ${active ? "is-active" : ""}`} onClick={() => setOpen((o) => !o)}>
+        {active ? active[1] : "Plus"}<span className="menu__chev" aria-hidden>▾</span>
+      </button>
+      {open && (
+        <ul className="menu__list">
+          {items.map(([k, lbl]) => (
+            <li key={k}>
+              <button className={`menu__item ${view === k ? "is-active" : ""}`} onClick={() => { setView(k); setOpen(false); }}>{lbl}</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /* ---------- app shell ---------- */
 export default function App() {
   const fromIdx = dateIndex[TODAY] ?? 0;
@@ -558,8 +514,6 @@ export default function App() {
   const [dateIdx, setDateIdx] = useState(fromIdx);
   const [weekAnchor, setWeekAnchor] = useState(fromIdx);
   const [monthCursor, setMonthCursor] = useState(() => { const [y, mm] = TODAY.split("-").map(Number); return { y, m: mm - 1 }; });
-  const [person, setPerson] = useState(null);
-  const [office, setOffice] = useState(null);
   const [highlight, setHighlight] = useState(null);
   const [cell, setCell] = useState(null);
 
@@ -618,13 +572,12 @@ export default function App() {
     return { ...prev, people, titles, assignments };
   }), [mutate]);
 
-  const goPerson = (p) => { setPerson(p); setView("personne"); };
-  const goOffice = (o) => { setOffice(o); setView("local"); };
   const goDay = (iso) => { const i = dateIndex[iso]; if (i != null) { setDateIdx(i); setView("jour"); } };
 
   if (!doc) return <div className="app"><p className="empty">Chargement…</p></div>;
 
-  const TABS = [["jour","Jour"],["semaine","Semaine"],["mois","Mois"],["personne","Personne"],["local","Local"],["statistiques","Statistiques"],["personnel","Personnel"]];
+  const PRIMARY = [["jour","Jour"],["semaine","Semaine"],["mois","Mois"]];
+  const SECONDARY = [["statistiques","Statistiques"],["personnel","Personnel"]];
   const saveText = {
     saved: source === "remote" ? "Enregistré" : "Enregistré (appareil)",
     saving: "Enregistrement…", unsaved: "Modifications non enregistrées", error: "Erreur d’enregistrement",
@@ -650,17 +603,16 @@ export default function App() {
       {warning && <div className="banner">{warning}{!hasRemote && " · Base non configurée — voir le README."}</div>}
 
       <nav className="tabs">
-        {TABS.map(([k, lbl]) => (
+        {PRIMARY.map(([k, lbl]) => (
           <button key={k} className={`tab ${view === k ? "is-active" : ""}`} onClick={() => setView(k)}>{lbl}</button>
         ))}
+        <SecondaryMenu items={SECONDARY} view={view} setView={setView} />
       </nav>
 
       <main className="panel">
-        {view === "jour" && <DayView doc={doc} dateIdx={dateIdx} setDateIdx={setDateIdx} editMode={editMode} goPerson={goPerson} openCell={setCell} />}
-        {view === "semaine" && <WeekView doc={doc} anchorIdx={weekAnchor} setAnchorIdx={setWeekAnchor} editMode={editMode} goPerson={goPerson} openCell={setCell} highlight={highlight} setHighlight={setHighlight} />}
+        {view === "jour" && <DayView doc={doc} dateIdx={dateIdx} setDateIdx={setDateIdx} editMode={editMode} openCell={setCell} />}
+        {view === "semaine" && <WeekView doc={doc} anchorIdx={weekAnchor} setAnchorIdx={setWeekAnchor} editMode={editMode} openCell={setCell} highlight={highlight} setHighlight={setHighlight} />}
         {view === "mois" && <MonthView doc={doc} cursor={monthCursor} setCursor={setMonthCursor} goDay={goDay} highlight={highlight} setHighlight={setHighlight} />}
-        {view === "personne" && <PersonView doc={doc} person={person} setPerson={setPerson} fromIdx={fromIdx} goOffice={goOffice} />}
-        {view === "local" && <OfficeView doc={doc} office={office} setOffice={setOffice} fromIdx={fromIdx} goPerson={goPerson} />}
         {view === "statistiques" && <StatsView doc={doc} />}
         {view === "personnel" && <StaffView doc={doc} renamePerson={renamePerson} addPerson={addPerson} removePerson={removePerson} setTitle={setTitle} />}
       </main>

@@ -2,7 +2,18 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   dates, slots, slotLabels, meta, hasRemote,
   loadDoc, saveDoc, occupancyFor,
+  computeStats, statsToCSV, personICS, quartersInRange,
 } from "./store.js";
+
+/* ---------- download helper ---------- */
+function downloadFile(name, text, mime) {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 /* ---------- date helpers ---------- */
 const MONTHS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -301,7 +312,15 @@ function PersonView({ doc, person, setPerson, fromIdx, goOffice }) {
       <PersonSelect doc={doc} value={person} onChange={setPerson} placeholder="Rechercher une personne…" />
       {!person && <p className="empty">Choisissez une personne pour afficher son horaire à venir.</p>}
       {person && <>
-        <p className="hint">{items.length} créneau{items.length !== 1 ? "x" : ""} à partir d’aujourd’hui</p>
+        <div className="exportrow">
+          <p className="hint nomargin">{items.length} créneau{items.length !== 1 ? "x" : ""} à partir d’aujourd’hui</p>
+          {items.length > 0 && (
+            <button className="ghostbtn" onClick={() => {
+              const { ics, count } = personICS(doc, person, dates[fromIdx].iso);
+              if (count) downloadFile(`${personLabel(person).replace(/\s+/g, "_")}.ics`, ics, "text/calendar");
+            }}>↓ Ajouter au calendrier (.ics)</button>
+          )}
+        </div>
         {items.length === 0 && <p className="empty">Aucune assignation à venir pour {personLabel(person)}.</p>}
         <ul className="list">{items.map((it, k) => {
           const pd = prettyDate(it.iso), po = parseOffice(it.office), newDay = k === 0 || items[k - 1].iso !== it.iso;
@@ -361,8 +380,84 @@ function OfficeView({ doc, office, setOffice, fromIdx, goPerson }) {
   );
 }
 
+/* ---------- STATISTIQUES ---------- */
+function StatBar({ label, pct, sub, tone = "teal" }) {
+  return (
+    <div className="statbar">
+      <div className="statbar__top"><span className="statbar__label">{label}</span><span className="statbar__pct">{pct}%</span></div>
+      <div className="statbar__track"><div className={`statbar__fill statbar__fill--${tone}`} style={{ width: `${Math.min(100, pct)}%` }} /></div>
+      {sub && <div className="statbar__sub">{sub}</div>}
+    </div>
+  );
+}
+function StatsView({ doc }) {
+  const quarters = useMemo(() => quartersInRange(), []);
+  const [period, setPeriod] = useState("all");
+  const range = useMemo(() => {
+    if (period === "all") return { from: dates[0].iso, to: dates.at(-1).iso, label: "Toute la période" };
+    const q = quarters.find((x) => x.key === period);
+    const inQ = dates.filter((d) => { const [y, m] = d.iso.split("-").map(Number); return y === q.y && Math.floor((m - 1) / 3) + 1 === q.q; });
+    return { from: inQ[0].iso, to: inQ.at(-1).iso, label: q.label };
+  }, [period, quarters]);
+  const stats = useMemo(() => computeStats(doc, range.from, range.to), [doc, range]);
+  const slotTone = { AM: "am", PM: "pm", Soir: "soir" };
+
+  return (
+    <div>
+      <div className="statshead">
+        <label className="pickerlabel nomargin">Période
+          <select className="select" value={period} onChange={(e) => setPeriod(e.target.value)}>
+            <option value="all">Toute la période</option>
+            {quarters.map((q) => <option key={q.key} value={q.key}>{q.label}</option>)}
+          </select>
+        </label>
+        <button className="ghostbtn" onClick={() => downloadFile(
+          `statistiques_${range.label.replace(/\s+/g, "_")}.csv`,
+          "\uFEFF" + statsToCSV(stats, range.label), "text/csv;charset=utf-8")}>
+          ↓ Exporter en CSV
+        </button>
+      </div>
+
+      <div className="statgrid">
+        <div className="statcard statcard--hero">
+          <div className="statcard__eyebrow">Taux d’occupation moyen</div>
+          <div className="statcard__big">{stats.global.pct}<span>%</span></div>
+          <div className="statcard__note">{stats.global.occ.toLocaleString("fr-CA")} créneaux occupés sur {stats.global.cap.toLocaleString("fr-CA")} · {stats.days} jours</div>
+        </div>
+
+        <div className="statcard">
+          <div className="statcard__title">Par plage horaire</div>
+          {stats.bySlot.map((r) => <StatBar key={r.slot} label={slotLabels[r.slot]} pct={r.pct} tone={slotTone[r.slot]} sub={`${r.occ} / ${r.cap}`} />)}
+        </div>
+
+        <div className="statcard">
+          <div className="statcard__title">Par jour de la semaine</div>
+          {stats.byDow.filter((r) => r.cap > 0).map((r) => <StatBar key={r.w} label={r.w} pct={r.pct} sub={`${r.occ} / ${r.cap}`} />)}
+        </div>
+
+        <div className="statcard">
+          <div className="statcard__title">Par trimestre</div>
+          {stats.byQuarter.map((r) => <StatBar key={r.key} label={r.label} pct={r.pct} tone="coral" sub={`${r.occ} / ${r.cap}`} />)}
+        </div>
+
+        <div className="statcard statcard--wide">
+          <div className="statcard__title">Par titre d’emploi <span className="statcard__hint">(part des créneaux)</span></div>
+          {stats.byTitle.length === 0 && <p className="empty nomargin">Aucune donnée.</p>}
+          {stats.byTitle.map((r) => (
+            <StatBar key={r.title} label={r.title === "Non défini" ? "Non défini" : r.title} pct={r.pct} tone={r.title === "Non défini" ? "muted" : "teal"} sub={`${r.n} créneaux`} />
+          ))}
+          {stats.byTitle.some((r) => r.title === "Non défini") && (
+            <p className="hint">Astuce : renseignez le titre d’emploi dans l’onglet Personnel pour préciser cette répartition.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- STAFF MANAGER ---------- */
-function StaffView({ doc, renamePerson, addPerson, removePerson }) {
+const TITLE_SUGGESTIONS = ["Médecin", "Résident", "Externe", "Infirmière", "Infirmière praticienne (IPS)", "Pharmacien", "Travailleur social", "Nutritionniste", "Kinésiologue", "Psychologue", "Agent administratif"];
+function StaffView({ doc, renamePerson, addPerson, removePerson, setTitle }) {
   const [adding, setAdding] = useState("");
   const counts = useMemo(() => {
     const c = {};
@@ -375,28 +470,41 @@ function StaffView({ doc, renamePerson, addPerson, removePerson }) {
 
   return (
     <div>
+      <datalist id="titres">{TITLE_SUGGESTIONS.map((t) => <option key={t} value={t} />)}</datalist>
       <div className="addrow">
         <input className="search" placeholder="Nom d’une nouvelle personne…" value={adding}
           onChange={(e) => setAdding(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && adding.trim()) { addPerson(adding.trim()); setAdding(""); } }} />
         <button className="ghostbtn" disabled={!adding.trim()} onClick={() => { addPerson(adding.trim()); setAdding(""); }}>Ajouter</button>
       </div>
-      <p className="hint">{sorted.length} personnes · renommer met à jour tout l’horaire</p>
+      <p className="hint">{sorted.length} personnes · le titre d’emploi alimente les statistiques par titre</p>
       <ul className="staff">
-        {sorted.map((p) => <StaffRow key={p} name={p} count={counts[p] || 0} onRename={renamePerson} onRemove={removePerson} />)}
+        <li className="staff__row staff__row--head">
+          <span>Nom</span><span>Titre d’emploi</span><span className="staff__count">Créneaux</span><span />
+        </li>
+        {sorted.map((p) => (
+          <StaffRow key={p} name={p} title={doc.titles?.[p] || ""} count={counts[p] || 0}
+            onRename={renamePerson} onRemove={removePerson} onTitle={setTitle} />
+        ))}
       </ul>
     </div>
   );
 }
-function StaffRow({ name, count, onRename, onRemove }) {
+function StaffRow({ name, title, count, onRename, onRemove, onTitle }) {
   const [val, setVal] = useState(name);
+  const [tval, setTval] = useState(title);
   useEffect(() => setVal(name), [name]);
+  useEffect(() => setTval(title), [title]);
   const commit = () => { const t = val.trim(); if (t && t !== name) onRename(name, t); else setVal(name); };
+  const commitTitle = () => { if (tval !== title) onTitle(name, tval.trim()); };
   return (
     <li className="staff__row">
       <input className="staff__name" value={val} onChange={(e) => setVal(e.target.value)} onBlur={commit}
         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
-      <span className="staff__count">{count} créneau{count !== 1 ? "x" : ""}</span>
+      <input className="staff__title" list="titres" placeholder="—" value={tval}
+        onChange={(e) => setTval(e.target.value)} onBlur={commitTitle}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+      <span className="staff__count">{count}</span>
       <button className="iconbtn iconbtn--danger" title="Retirer"
         onClick={() => { if (confirm(`Retirer ${personLabel(name)} ? Ses ${count} assignation(s) seront effacées.`)) onRemove(name); }}>×</button>
     </li>
@@ -480,28 +588,34 @@ export default function App() {
   }), [mutate]);
 
   const addPerson = useCallback((name) => mutate((prev) =>
-    prev.people.includes(name) ? prev : { ...prev, people: [...prev.people, name] }), [mutate]);
+    prev.people.includes(name) ? prev : { ...prev, people: [...prev.people, name], titles: { ...prev.titles, [name]: prev.titles?.[name] || "" } }), [mutate]);
+
+  const setTitle = useCallback((name, title) => mutate((prev) =>
+    ({ ...prev, titles: { ...(prev.titles || {}), [name]: title } })), [mutate]);
 
   const renamePerson = useCallback((oldN, neo) => mutate((prev) => {
     const people = Array.from(new Set(prev.people.map((p) => (p === oldN ? neo : p))));
+    const titles = { ...(prev.titles || {}) };
+    if (oldN in titles) { titles[neo] = titles[neo] || titles[oldN]; delete titles[oldN]; }
     const assignments = {};
     for (const iso in prev.assignments) { assignments[iso] = {};
       for (const s in prev.assignments[iso]) { assignments[iso][s] = {};
         for (const o in prev.assignments[iso][s]) { const v = prev.assignments[iso][s][o]; assignments[iso][s][o] = v === oldN ? neo : v; }
       }
     }
-    return { ...prev, people, assignments };
+    return { ...prev, people, titles, assignments };
   }), [mutate]);
 
   const removePerson = useCallback((name) => mutate((prev) => {
     const people = prev.people.filter((p) => p !== name);
+    const titles = { ...(prev.titles || {}) }; delete titles[name];
     const assignments = {};
     for (const iso in prev.assignments) { assignments[iso] = {};
       for (const s in prev.assignments[iso]) { assignments[iso][s] = {};
         for (const o in prev.assignments[iso][s]) { const v = prev.assignments[iso][s][o]; if (v !== name) assignments[iso][s][o] = v; }
       }
     }
-    return { ...prev, people, assignments };
+    return { ...prev, people, titles, assignments };
   }), [mutate]);
 
   const goPerson = (p) => { setPerson(p); setView("personne"); };
@@ -510,7 +624,7 @@ export default function App() {
 
   if (!doc) return <div className="app"><p className="empty">Chargement…</p></div>;
 
-  const TABS = [["jour","Jour"],["semaine","Semaine"],["mois","Mois"],["personne","Personne"],["local","Local"],["personnel","Personnel"]];
+  const TABS = [["jour","Jour"],["semaine","Semaine"],["mois","Mois"],["personne","Personne"],["local","Local"],["statistiques","Statistiques"],["personnel","Personnel"]];
   const saveText = {
     saved: source === "remote" ? "Enregistré" : "Enregistré (appareil)",
     saving: "Enregistrement…", unsaved: "Modifications non enregistrées", error: "Erreur d’enregistrement",
@@ -547,7 +661,8 @@ export default function App() {
         {view === "mois" && <MonthView doc={doc} cursor={monthCursor} setCursor={setMonthCursor} goDay={goDay} highlight={highlight} setHighlight={setHighlight} />}
         {view === "personne" && <PersonView doc={doc} person={person} setPerson={setPerson} fromIdx={fromIdx} goOffice={goOffice} />}
         {view === "local" && <OfficeView doc={doc} office={office} setOffice={setOffice} fromIdx={fromIdx} goPerson={goPerson} />}
-        {view === "personnel" && <StaffView doc={doc} renamePerson={renamePerson} addPerson={addPerson} removePerson={removePerson} />}
+        {view === "statistiques" && <StatsView doc={doc} />}
+        {view === "personnel" && <StaffView doc={doc} renamePerson={renamePerson} addPerson={addPerson} removePerson={removePerson} setTitle={setTitle} />}
       </main>
 
       {cell && <CellEditor doc={doc} cell={cell} onClose={() => setCell(null)} onSet={setCellVal} onAddPerson={addPerson} />}

@@ -1,22 +1,27 @@
 /* ===== tokens ===== */
 :root {
-  --paper: #f4f6f4;
+  --paper: #eef4f1;
   --surface: #ffffff;
-  --ink: #18282b;
-  --muted: #5d6b6d;
-  --faint: #8a9799;
-  --line: #e0e5e2;
-  --line-strong: #cbd3cf;
-  --teal: #0d7d74;
-  --teal-deep: #0a5e57;
-  --teal-tint: #e6f3f1;
+  --ink: #0f2a2b;
+  --muted: #51635f;
+  --faint: #859690;
+  --line: #e2ebe6;
+  --line-strong: #c8d6cf;
+  --teal: #0fa093;
+  --teal-deep: #0a736a;
+  --teal-tint: #def3ef;
   --free: #2f9e44;
   --free-tint: #ecf8ef;
   --amber: #b8770d;
+  --coral: #e07a54;
+  --coral-deep: #c0613e;
+  --coral-tint: #fbe9e1;
   --ext: #6d5a9c;
   --ext-tint: #efeaf7;
-  --radius: 10px;
-  --shadow: 0 1px 2px rgba(24,40,43,.06), 0 6px 20px rgba(24,40,43,.05);
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(15,42,43,.05), 0 8px 24px rgba(15,42,43,.06);
+  --shadow-sm: 0 1px 2px rgba(15,42,43,.06);
+  --display: "Bricolage Grotesque", "Spline Sans", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -40,31 +45,37 @@ button { font-family: inherit; cursor: pointer; }
 .app { max-width: 920px; margin: 0 auto; padding: 0 16px 64px; }
 
 .masthead {
-  padding: 30px 0 18px;
-  border-bottom: 2px solid var(--ink);
+  padding: 34px 0 20px;
+  border-bottom: 1px solid var(--line-strong);
+  position: relative;
+}
+.masthead::after {
+  content: ""; position: absolute; left: 0; bottom: -1px; width: 64px; height: 3px;
+  background: var(--teal); border-radius: 3px;
 }
 .masthead__rooms {
   font-family: "Spline Sans Mono", monospace;
-  font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--teal); margin-bottom: 10px;
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--teal-deep); margin-bottom: 12px;
 }
 .masthead__title {
-  margin: 0; font-size: clamp(26px, 5vw, 38px); font-weight: 600;
-  letter-spacing: -.02em; line-height: 1.05;
+  margin: 0; font-family: var(--display); font-size: clamp(28px, 5.4vw, 42px); font-weight: 600;
+  letter-spacing: -.02em; line-height: 1.02;
 }
-.masthead__unit { margin-top: 6px; font-weight: 500; color: var(--ink); }
+.masthead__unit { margin-top: 8px; font-weight: 500; color: var(--ink); }
 .masthead__appel { margin-top: 2px; font-size: 13px; color: var(--muted); }
 
 /* ===== tabs ===== */
-.tabs { display: flex; gap: 4px; margin: 18px 0 22px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 5px; margin: 18px 0 22px; }
 .tab {
   border: 1px solid var(--line-strong); background: var(--surface);
-  color: var(--muted); padding: 9px 18px; border-radius: 999px;
-  font-size: 14px; font-weight: 500; transition: .12s;
+  color: var(--muted); padding: 9px 17px; border-radius: 999px;
+  font-size: 13.5px; font-weight: 500; transition: .12s;
 }
-.tab:hover { color: var(--ink); border-color: var(--teal); }
+.tab:hover { color: var(--teal-deep); border-color: var(--teal); background: var(--teal-tint); }
 .tab.is-active {
-  background: var(--ink); color: #fff; border-color: var(--ink);
+  background: var(--teal); color: #fff; border-color: var(--teal);
+  box-shadow: 0 4px 12px rgba(15,160,147,.28);
 }
 
 /* ===== day bar ===== */
@@ -97,14 +108,14 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ===== occupancy meters ===== */
 .meters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
-.meter { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
-.meter__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.meter__val { font-size: 14px; font-weight: 600; }
-.meter__track { height: 6px; background: var(--paper); border-radius: 999px; overflow: hidden; }
-.meter__fill { height: 100%; border-radius: 999px; }
+.meter { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px 15px; box-shadow: var(--shadow-sm); }
+.meter__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+.meter__val { font-size: 15px; font-weight: 600; font-family: var(--display); }
+.meter__track { height: 7px; background: var(--paper); border-radius: 999px; overflow: hidden; }
+.meter__fill { height: 100%; border-radius: 999px; transition: width .35s ease; }
 .meter__fill--low { background: var(--free); }
 .meter__fill--mid { background: var(--teal); }
-.meter__fill--high { background: var(--amber); }
+.meter__fill--high { background: var(--coral); }
 
 /* ===== slot badge ===== */
 .slot {
@@ -350,4 +361,72 @@ th.grid__office { width: 200px; }
   .staff__count { display: none; }
   .cal__cell { min-height: 58px; padding: 4px; }
   .cal__bars { height: 22px; }
+}
+
+/* ===================================================================
+   v3 — statistiques, titres d'emploi, exports
+   =================================================================== */
+.nomargin { margin: 0 !important; }
+
+/* export rows */
+.exportrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 0; flex-wrap: wrap; }
+
+/* stats header */
+.statshead { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+
+/* stats grid of cards */
+.statgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.statcard {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px 18px 20px; box-shadow: var(--shadow-sm);
+}
+.statcard--wide { grid-column: 1 / -1; }
+.statcard--hero {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #0f2a2b 0%, #0a736a 100%);
+  color: #fff; border: 0; display: flex; flex-direction: column; gap: 4px;
+}
+.statcard__eyebrow { font-family: "Spline Sans Mono", monospace; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #aee3dc; }
+.statcard__big { font-family: var(--display); font-size: 64px; font-weight: 600; line-height: 1; letter-spacing: -.03em; }
+.statcard__big span { font-size: 30px; margin-left: 4px; opacity: .8; }
+.statcard__note { font-size: 13px; color: #cfe9e4; }
+.statcard__title { font-family: var(--display); font-size: 16px; font-weight: 600; margin-bottom: 14px; color: var(--ink); }
+.statcard__hint { font-family: "Spline Sans"; font-size: 12px; font-weight: 400; color: var(--faint); }
+
+/* stat bars */
+.statbar { margin-bottom: 13px; }
+.statbar:last-child { margin-bottom: 0; }
+.statbar__top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; gap: 10px; }
+.statbar__label { font-size: 13.5px; font-weight: 500; color: var(--ink); }
+.statbar__pct { font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--teal-deep); }
+.statbar__track { height: 9px; background: var(--paper); border-radius: 999px; overflow: hidden; }
+.statbar__fill { height: 100%; border-radius: 999px; transition: width .4s ease; }
+.statbar__fill--teal { background: var(--teal); }
+.statbar__fill--coral { background: var(--coral); }
+.statbar__fill--muted { background: var(--line-strong); }
+.statbar__fill--am { background: #4f8fd6; }
+.statbar__fill--pm { background: #dd9a5a; }
+.statbar__fill--soir { background: #8d76c2; }
+.statbar__sub { font-size: 11.5px; color: var(--faint); margin-top: 3px; font-variant-numeric: tabular-nums; }
+
+/* staff titles column */
+.staff__row { grid-template-columns: minmax(0,1.1fr) minmax(0,1fr) auto auto; }
+.staff__row--head { background: #fafbfa; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 8px 12px; }
+.staff__row--head .staff__count { text-align: right; }
+.staff__title {
+  border: 1px solid transparent; background: none; border-radius: 7px; padding: 8px 10px;
+  font-size: 13.5px; color: var(--muted); font-family: inherit; width: 100%;
+}
+.staff__title:hover { border-color: var(--line); }
+.staff__title:focus { outline: 0; border-color: var(--teal); background: var(--surface); box-shadow: 0 0 0 2px var(--teal-tint); color: var(--ink); }
+.staff__count { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 720px) {
+  .statgrid { grid-template-columns: 1fr; }
+  .statcard__big { font-size: 52px; }
+}
+@media (max-width: 620px) {
+  .staff__row { grid-template-columns: 1fr auto; }
+  .staff__title { grid-column: 1 / -1; }
+  .staff__row--head { display: none; }
 }

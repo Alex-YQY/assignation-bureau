@@ -9,7 +9,18 @@ dans une base de données** partagée.
 - **Semaine** — grille locaux × 7 jours pour une plage choisie ; surlignage d'une personne.
 - **Mois** — calendrier avec occupation quotidienne, ou les jours d'une personne.
 - **Personne / Local** — horaire à venir d'une personne ou d'un local.
-- **Personnel** — ajouter, renommer (mise à jour de tout l'horaire) ou retirer une personne.
+- **Statistiques** — taux d'occupation global, par plage, par jour de la semaine,
+  par trimestre et par titre d'emploi ; filtrable par trimestre ; export CSV.
+- **Personnel** — ajouter, renommer (mise à jour de tout l'horaire), définir le
+  titre d'emploi, ou retirer une personne.
+
+## Exports
+- **CSV** des statistiques (onglet Statistiques → « Exporter en CSV »), avec BOM
+  pour un affichage correct des accents dans Excel.
+- **Calendrier .ics** par personne (onglet Personne → « Ajouter au calendrier »).
+  Le fichier s'importe dans Outlook, Google Agenda ou Apple Calendrier. Pour un
+  envoi automatique dans le Outlook de chaque personne, une intégration Microsoft
+  365 (Graph API) serait nécessaire — c'est un ajout possible plus tard.
 
 L'édition s'active avec le bouton **« Modifier l'horaire »**. Les changements
 sont enregistrés automatiquement (indicateur en haut à droite).
